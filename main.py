@@ -15,6 +15,14 @@ dp = Dispatcher()
 async def process_start_command(message: Message):
     await message.answer("Привет!")
 
+@dp.message(Command("info"))
+async def process_start_command(message: Message):
+    await message.answer("Здесь скоро будет информация о боте!")
+
+@dp.message(Command("command"))
+async def process_start_command(message: Message):
+    await message.answer("Здесь скоро будет информация о командах бота!")
+
 @dp.message()
 async def echo_message(message: Message):
     await message.answer(message.text)
