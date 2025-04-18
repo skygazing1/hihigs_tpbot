@@ -1,33 +1,55 @@
-from aiogram import Bot, Dispatcher
-from aiogram.types import Message
-from aiogram.filters import Command
-from dotenv import load_dotenv
-import asyncio
 import os
+import asyncio
+import logging
+from pathlib import Path
 
+from dotenv import load_dotenv
+
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+from aiogram.types import BotCommand
+
+from handlers import start, help, status  # Импорт роутеров
+
+# === Логирование ===
+Path("logs").mkdir(parents=True, exist_ok=True)
+logging.basicConfig(
+    filename="logs/bot.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# === Загрузка токена ===
 load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("BOT_TOKEN не найден в .env")
 
-bot = Bot(token=BOT_TOKEN)
+# === Инициализация бота и диспетчера ===
+bot = Bot(
+    token=TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
 dp = Dispatcher()
 
-@dp.message(Command("start"))
-async def process_start_command(message: Message):
-    await message.answer("Привет!")
+# === Подключение роутеров ===
+dp.include_router(start.router)
+dp.include_router(help.router)
+dp.include_router(status.router)
 
-@dp.message(Command("info"))
-async def process_start_command(message: Message):
-    await message.answer("Здесь скоро будет информация о боте!")
+# === Настройка меню команд ===
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="help", description="Помощь"),
+        BotCommand(command="status", description="Информация о тебе"),
+    ]
+    await bot.set_my_commands(commands)
 
-@dp.message(Command("command"))
-async def process_start_command(message: Message):
-    await message.answer("Здесь скоро будет информация о командах бота!")
-
-@dp.message()
-async def echo_message(message: Message):
-    await message.answer(message.text)
-
+# === Запуск бота ===
 async def main():
+    await set_bot_commands(bot)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
