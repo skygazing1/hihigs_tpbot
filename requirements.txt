@@ -1,7 +1,7 @@
-aiofiles==24.1.0
-aiogram==3.18.0
+aiofiles~=23.1.0
+aiogram==3.0.0
 aiohappyeyeballs==2.4.8
-aiohttp==3.11.13
+aiohttp~=3.8.5
 aiosignal==1.3.2
 annotated-types==0.7.0
 attrs==25.1.0
@@ -15,5 +15,10 @@ propcache==0.3.0
 pydantic==2.10.6
 pydantic_core==2.27.2
 python-dotenv==1.0.1
-typing_extensions==4.12.2
+typing_extensions~=4.7.1
 yarl==1.18.3
+pytest==8.2.0
+pytest-asyncio==0.23.6
+aiogram-tests
+sqlalchemy
+aiosqlite

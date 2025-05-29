@@ -1,47 +1,66 @@
+import os
+import asyncio
 import logging
 from pathlib import Path
 
-from aiogram import Bot, Dispatcher
-from aiogram.types import Message
-from aiogram.filters import Command
-
 from dotenv import load_dotenv
-import asyncio
-import os
 
-# Настройка логов
-Path("logs").mkdir(exist_ok=True)
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+from aiogram.types import BotCommand
+
+from handlers import start, help, status  # Импорт роутеров
+from models import engine, init_db # Импорт engine и init_db
+
+# === Логирование ===
+Path("logs").mkdir(parents=True, exist_ok=True) # Оставляем версию из testing с parents=True
 logging.basicConfig(
     filename="logs/bot.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# Загрузка токена
+# === Загрузка токена ===
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token=TOKEN)
+if not TOKEN:
+    raise ValueError("BOT_TOKEN не найден в .env")
+
+# === Инициализация бота и диспетчера ===
+bot = Bot(
+    token=TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
 dp = Dispatcher()
 
-# Обработчик /start
-@dp.message(Command("start"))
-async def process_start_command(message: Message):
-    await message.answer("Привет!")
+# === Подключение роутеров ===
+dp.include_router(start.router)
+dp.include_router(help.router)
+dp.include_router(status.router)
 
-# Обработчик /status
-@dp.message(Command("status"))
-async def process_status_command(message: Message):
-    username = message.from_user.username or "не указан"
-    logging.info(f"Пользователь {message.from_user.id} вызвал /status")
-    await message.answer(
-        f"🧾 Твой ID: <code>{message.from_user.id}</code>\n"
-        f"Юзернейм: @{username}",
-        parse_mode="HTML"
-    )
+# === Настройка меню команд ===
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="help", description="Помощь"),
+        BotCommand(command="status", description="Информация о тебе"),
+    ]
+    await bot.set_my_commands(commands)
 
 # Основной запуск
 async def main():
-    await dp.start_polling(bot)
+    # Initialize database
+    await init_db() # Вызываем init_db для создания/обновления БД
+
+    await set_bot_commands(bot)
+    await dp.start_polling(bot, close_bot_session=True)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot stopped manually")
+    finally:
+        # Dispose database engine
+        asyncio.run(engine.dispose())
