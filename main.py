@@ -11,6 +11,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand
 
 from handlers import start, help, status  # Импорт роутеров
+from models import engine
 
 # === Логирование ===
 Path("logs").mkdir(parents=True, exist_ok=True)
@@ -47,10 +48,19 @@ async def set_bot_commands(bot: Bot):
     ]
     await bot.set_my_commands(commands)
 
-# === Запуск бота ===
 async def main():
+    # Initialize database
+    from models import init_db
+    await init_db()
+
     await set_bot_commands(bot)
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, close_bot_session=True)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot stopped manually")
+    finally:
+        # Dispose database engine
+        asyncio.run(engine.dispose())
