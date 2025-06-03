@@ -48,3 +48,16 @@ async def vmpath_handler(message: Message):
             host = match.group(1)
             try:
                 port = int(match.group(2))
+                if not (0 < port < 65536):
+                    await message.answer("Неверный номер порта. Порт должен быть числом от 1 до 65535.")
+                    return
+            except ValueError:
+                await message.answer("Номер порта должен быть числом.")
+                return
+        else:
+            await message.answer(
+                "Неверный формат хоста и порта. Используйте <code>host:port</code>, например, <code>192.168.1.100:2222</code>."
+            )
+            return
+
+        logger.info(f"User {user_id} attempting to set VM path: Host={host}, Port={port}, User={username}")
