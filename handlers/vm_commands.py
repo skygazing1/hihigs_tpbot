@@ -10,3 +10,5 @@ import paramiko
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+vm_config_manager = VMConfigManager()
