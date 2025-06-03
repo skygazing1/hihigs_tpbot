@@ -73,3 +73,12 @@ async def vmpath_handler(message: Message):
 async def check_vm_connection_handler(message: Message):
     user_id = message.from_user.id
     await message.answer("Проверяю подключение к виртуальной машине... ⏳")
+
+    vm_config = await vm_config_manager.get_vm_config(user_id)
+
+    if not vm_config:
+        await message.answer(
+            "⚠️ Данные для подключения к ВМ не найдены. "
+            "Пожалуйста, сначала используйте команду /vmpath, чтобы их указать."
+        )
+        return
