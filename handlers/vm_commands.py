@@ -60,4 +60,16 @@ async def vmpath_handler(message: Message):
             )
             return
 
-        logger.info(f"User {user_id} attempting to set VM path: Host={host}, Port={port}, User={username}")
+    logger.info(f"User {user_id} attempting to set VM path: Host={host}, Port={port}, User={username}")
+
+    success = await vm_config_manager.save_vm_config(user_id, host, port, username, password)
+
+    if success:
+        await message.answer("✅ Данные для подключения к виртуальной машине успешно сохранены!")
+    else:
+        await message.answer("❌ Произошла ошибка при сохранении данных. Попробуйте позже или обратитесь к администратору.")
+
+@router.message(Command("check"))
+async def check_vm_connection_handler(message: Message):
+    user_id = message.from_user.id
+    await message.answer("Проверяю подключение к виртуальной машине... ⏳")
