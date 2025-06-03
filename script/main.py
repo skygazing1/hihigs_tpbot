@@ -60,3 +60,25 @@ async def set_bot_commands(bot_instance: Bot):
         BotCommand(command="cat", description="Показать файл с ВМ (путь_к_файлу)"),
     ]
     await bot_instance.set_my_commands(commands)
+
+async def main_async():
+    await create_tables_if_not_exist()
+    logger.info("Database tables initialized/checked.")
+
+    await set_bot_commands(bot)
+    logger.info("Bot commands set.")
+    logger.info("Starting bot polling...")
+    await dp.start_polling(bot, close_bot_session=True)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped manually")
+    except Exception as e:
+        logger.critical(f"Critical error during bot execution: {e}", exc_info=True)
+    finally:
+        if db_engine:
+            logger.info("Disposing database engine.")
+            asyncio.run(db_engine.dispose())
+        logger.info("Bot shutdown complete.")
