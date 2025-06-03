@@ -82,3 +82,4 @@ if __name__ == "__main__":
             logger.info("Disposing database engine.")
             asyncio.run(db_engine.dispose())
         logger.info("Bot shutdown complete.")
+#finally
