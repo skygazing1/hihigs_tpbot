@@ -12,3 +12,8 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 vm_config_manager = VMConfigManager()
+
+@router.message(Command("vmpath"))
+async def vmpath_handler(message: Message):
+    user_id = message.from_user.id
+    args_text = message.text.split(maxsplit=1)[1] if len(message.text.split(maxsplit=1)) > 1 else ""
