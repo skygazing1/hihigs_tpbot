@@ -27,3 +27,24 @@ async def vmpath_handler(message: Message):
             "Пример: <code>/vmpath your.server.com:2222 myuser mypass123</code>"
         )
         return
+
+    parts = args_text.split()
+    if len(parts) != 3:
+        await message.answer(
+            "Неверный формат. Пожалуйста, предоставьте хост (опционально с портом), имя пользователя и пароль.\n"
+            "Формат: <code>/vmpath &lt;host_or_host:port&gt; &lt;username&gt; &lt;password&gt;</code>\n"
+            "Пример: <code>/vmpath 192.168.1.100:22 myuser mypass123</code>"
+        )
+        return
+
+    host_port_str, username, password = parts[0], parts[1], parts[2]
+
+    host = host_port_str
+    port = 22
+
+    if ':' in host_port_str:
+        match = re.fullmatch(r'([^:]+):(\d+)', host_port_str)
+        if match:
+            host = match.group(1)
+            try:
+                port = int(match.group(2))
