@@ -48,3 +48,15 @@ dp.include_router(start.router)
 dp.include_router(help.router)
 dp.include_router(status.router)
 dp.include_router(vm_commands.router)
+
+async def set_bot_commands(bot_instance: Bot):
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="help", description="Помощь"),
+        BotCommand(command="status", description="Информация о тебе"),
+        BotCommand(command="vmpath", description="Указать данные ВМ (host user pass)"),
+        BotCommand(command="check", description="Проверить подключение к ВМ"),
+        BotCommand(command="ls", description="Список файлов на ВМ (опц. путь)"),
+        BotCommand(command="cat", description="Показать файл с ВМ (путь_к_файлу)"),
+    ]
+    await bot_instance.set_my_commands(commands)
