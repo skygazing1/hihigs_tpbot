@@ -31,3 +31,20 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+load_dotenv(dotenv_path=project_root / '.env')
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    logger.critical("BOT_TOKEN не найден. Убедитесь, что файл .env существует в корне проекта и содержит BOT_TOKEN.")
+    sys.exit("BOT_TOKEN not configured. Exiting.")
+
+bot = Bot(
+    token=TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
+dp = Dispatcher()
+
+dp.include_router(start.router)
+dp.include_router(help.router)
+dp.include_router(status.router)
+dp.include_router(vm_commands.router)
