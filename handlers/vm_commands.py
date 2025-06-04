@@ -94,3 +94,11 @@ async def check_vm_connection_handler(message: Message):
             "Пожалуйста, проверьте сохраненные данные с помощью /vmpath."
         )
         return
+
+    ssh_conn = None
+    try:
+        logger.info(f"User {user_id}: Attempting to check SSH connection to {username}@{host}:{port}")
+        ssh_conn = SSHConnection(host=host, port=port, username=username, password=password)
+
+        if ssh_conn.connect():
+            await message.answer(f"✅ Успешное подключение к {host}:{port} пользователем {username}!")
