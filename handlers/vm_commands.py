@@ -82,3 +82,15 @@ async def check_vm_connection_handler(message: Message):
             "Пожалуйста, сначала используйте команду /vmpath, чтобы их указать."
         )
         return
+
+    host = vm_config.get("host")
+    port = vm_config.get("port", 22)
+    username = vm_config.get("username")
+    password = vm_config.get("password")
+
+    if not all([host, username, password]):
+        await message.answer(
+            "⚠️ Неполные данные для подключения к ВМ (отсутствует хост, имя пользователя или пароль). "
+            "Пожалуйста, проверьте сохраненные данные с помощью /vmpath."
+        )
+        return
