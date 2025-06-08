@@ -125,3 +125,6 @@ async def check_vm_connection_handler(message: Message):
     except ConnectionRefusedError:
         logger.error(f"User {user_id}: Connection refused for {host}:{port}")
         await message.answer(f"❌ Подключение отклонено сервером {host}:{port}. Убедитесь, что SSH сервер запущен и порт не заблокирован.")
+    except TimeoutError:
+        logger.error(f"User {user_id}: Connection timeout for {host}:{port}")
+        await message.answer(f"❌ Истекло время ожидания подключения к {host}:{port}. Проверьте сеть и доступность сервера.")
