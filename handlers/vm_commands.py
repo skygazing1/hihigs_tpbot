@@ -108,17 +108,17 @@ async def check_vm_connection_handler(message: Message):
                     logger.info(f"User {user_id}: Test command 'echo hello' successful on {host}")
                     await message.answer("Тестовая команда на сервере выполнена успешно.")
                 else:
-                    logger.warning(
-                        f"User {user_id}: Test command 'echo hello' failed or unexpected output on {host}. STDOUT: {stdout}, STDERR: {stderr}")
-                    await message.answer(
-                        "⚠️ Тестовая команда на сервере не дала ожидаемого результата, но подключение установлено.")
+                    logger.warning(f"User {user_id}: Test command 'echo hello' failed or unexpected output on {host}. STDOUT: {stdout}, STDERR: {stderr}")
+                    await message.answer("⚠️ Тестовая команда на сервере не дала ожидаемого результата, но подключение установлено.")
             except Exception as e_cmd:
                 logger.error(f"User {user_id}: Error executing test command on {host}: {e_cmd}")
-                await message.answer(
-                    "⚠️ Ошибка при выполнении тестовой команды на сервере, но подключение было установлено.")
+                await message.answer("⚠️ Ошибка при выполнении тестовой команды на сервере, но подключение было установлено.")
         else:
             await message.answer(f"❌ Не удалось подключиться к {host}. Проверьте данные и доступность сервера.")
 
     except paramiko.AuthenticationException:
         logger.warning(f"User {user_id}: Authentication failed for {username}@{host}:{port}")
         await message.answer("❌ Ошибка аутентификации. Неверное имя пользователя или пароль.")
+    except paramiko.SSHException as e:
+        logger.error(f"User {user_id}: SSH connection error to {host}:{port} - {e}")
+        await message.answer(f"❌ Ошибка SSH подключения: {e}. Проверьте адрес хоста, порт и доступность сервера.")
