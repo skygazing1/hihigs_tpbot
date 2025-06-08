@@ -134,3 +134,65 @@ async def check_vm_connection_handler(message: Message):
     finally:
         if ssh_conn:
             ssh_conn.disconnect()
+
+
+@router.message(Command("ls"))
+async def ls_handler(message: Message):
+    user_id = message.from_user.id
+    path_to_list = "~"
+    args_text = message.text.split(maxsplit=1)
+    if len(args_text) > 1:
+        path_to_list = args_text[1].strip()
+        if not path_to_list:
+            path_to_list = "~"
+
+    await message.answer(f"Получаю список файлов из каталога <code>{path_to_list}</code>... ⏳")
+
+    vm_config = await vm_config_manager.get_vm_config(user_id)
+    if not vm_config:
+        await message.answer("⚠️ Данные для подключения к ВМ не найдены. Используйте /vmpath.")
+        return
+
+    host, port, username, password = vm_config["host"], vm_config["port"], vm_config["username"], vm_config["password"]
+    if not all([host, username, password]):
+        await message.answer("⚠️ Неполные данные для подключения к ВМ. Проверьте /vmpath.")
+        return
+
+    ssh_conn = None
+    try:
+        ssh_conn = SSHConnection(host=host, port=port, username=username, password=password)
+        ssh_conn.connect()
+
+        command = f"ls -la {path_to_list}"
+        logger.info(f"User {user_id}: Executing '{command}' on {host}")
+        stdout, stderr, status = ssh_conn.execute_command(command)
+
+        if status == 0:
+            if stdout:
+                if len(stdout) > 4000:
+                    await message.answer(f"Содержимое каталога <code>{path_to_list}</code> (начало):")
+                    for i in range(0, len(stdout), 4000):
+                        await message.answer(f"<pre>{stdout[i:i + 4000]}</pre>")
+                else:
+                    await message.answer(f"Содержимое каталога <code>{path_to_list}</code>:\n<pre>{stdout}</pre>")
+            else:
+                await message.answer(f"Каталог <code>{path_to_list}</code> пуст или команда не вернула вывод.")
+        else:
+            logger.warning(f"User {user_id}: Error executing '{command}' on {host}. STDERR: {stderr}")
+            await message.answer(
+                f"❌ Ошибка при выполнении команды <code>ls</code>:\n<pre>{stderr if stderr else 'Неизвестная ошибка'}</pre>")
+
+    except paramiko.AuthenticationException:
+        await message.answer("❌ Ошибка аутентификации. Проверьте данные /vmpath.")
+    except paramiko.SSHException as e:
+        await message.answer(f"❌ Ошибка SSH подключения: {e}")
+    except ConnectionRefusedError:
+        await message.answer(f"❌ Подключение отклонено сервером {host}:{port}.")
+    except TimeoutError:
+        await message.answer(f"❌ Истекло время ожидания подключения к {host}:{port}.")
+    except Exception as e:
+        logger.error(f"User {user_id}: Unexpected error during ls command on {host} - {e}")
+        await message.answer(f"❌ Произошла непредвиденная ошибка: {e}")
+    finally:
+        if ssh_conn:
+            ssh_conn.disconnect()
