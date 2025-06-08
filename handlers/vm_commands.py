@@ -131,3 +131,6 @@ async def check_vm_connection_handler(message: Message):
     except Exception as e:
         logger.error(f"User {user_id}: Unexpected error during SSH check to {host}:{port} - {e}")
         await message.answer(f"❌ Произошла непредвиденная ошибка: {e}")
+    finally:
+        if ssh_conn:
+            ssh_conn.disconnect()
