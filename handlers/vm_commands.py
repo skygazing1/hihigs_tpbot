@@ -128,3 +128,6 @@ async def check_vm_connection_handler(message: Message):
     except TimeoutError:
         logger.error(f"User {user_id}: Connection timeout for {host}:{port}")
         await message.answer(f"❌ Истекло время ожидания подключения к {host}:{port}. Проверьте сеть и доступность сервера.")
+    except Exception as e:
+        logger.error(f"User {user_id}: Unexpected error during SSH check to {host}:{port} - {e}")
+        await message.answer(f"❌ Произошла непредвиденная ошибка: {e}")
