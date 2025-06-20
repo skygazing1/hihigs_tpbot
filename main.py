@@ -14,7 +14,7 @@ from handlers import start, help, status  # Импорт роутеров
 from models import engine, init_db # Импорт engine и init_db
 
 # === Логирование ===
-Path("logs").mkdir(parents=True, exist_ok=True) # Оставляем версию из testing с parents=True
+Path("logs").mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     filename="logs/bot.log",
     level=logging.INFO,
