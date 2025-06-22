@@ -1,123 +1,84 @@
+import os
+import sys
+import asyncio
 import logging
-from aiogram import Router, F
-from aiogram.types import Message
-from aiogram.filters import Command
-import paramiko
-from .classes import FileOperations
-from .db import get_db_session, VMConnection
+from pathlib import Path
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
+from dotenv import load_dotenv
+
+from script.db import initialize_db, init_db as create_tables_if_not_exist, engine as db_engine
+
+DATABASE_URL = f"sqlite+aiosqlite:///{project_root}/bot.db"
+LOG_FILE_PATH = project_root / "logs" / "bot.log"
+
+initialize_db(DATABASE_URL)
+
+from handlers import start, help, status, vm_commands
+
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+from aiogram.types import BotCommand
+
+LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+logging.basicConfig(
+    filename=str(LOG_FILE_PATH),
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+)
+
 logger = logging.getLogger(__name__)
 
-router = Router()
+load_dotenv(dotenv_path=project_root / '.env')
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    logger.critical("BOT_TOKEN не найден. Убедитесь, что файл .env существует в корне проекта и содержит BOT_TOKEN.")
+    sys.exit("BOT_TOKEN not configured. Exiting.")
 
-@router.message(Command("ls"))
-async def cmd_ls(message: Message):
-    """
-    Обработчик команды /ls.
-    Выводит список содержимого домашнего каталога пользователя на VM.
-    """
-    try:
-        # Получаем информацию о подключении из БД
-        session = get_db_session()
-        vm_connection = session.query(VMConnection).filter_by(user_id=message.from_user.id).first()
-        
-        if not vm_connection:
-            await message.answer("Сначала укажите параметры подключения к VM с помощью команды /vmpath")
-            return
-            
-        # Создаем SSH-клиент
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
-        try:
-            # Подключаемся к VM
-            ssh.connect(
-                hostname=vm_connection.host,
-                username=vm_connection.username,
-                password=vm_connection.password
-            )
-            
-            # Создаем экземпляр FileOperations
-            file_ops = FileOperations(ssh)
-            
-            # Получаем список файлов
-            files = await file_ops.list_directory()
-            
-            # Форматируем вывод
-            response = "Содержимое домашнего каталога:\n\n"
-            for file_info in files:
-                file_type = "📁" if file_info['type'] == 'directory' else "📄"
-                response += f"{file_type} {file_info['name']} ({file_info['size']} bytes)\n"
-                
-            await message.answer(response)
-            
-        except Exception as e:
-            logger.error(f"Error in cmd_ls: {str(e)}")
-            await message.answer(f"Ошибка при подключении к VM: {str(e)}")
-            
-        finally:
-            ssh.close()
-            
-    except Exception as e:
-        logger.error(f"Error in cmd_ls: {str(e)}")
-        await message.answer("Произошла ошибка при выполнении команды")
+bot = Bot(
+    token=TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
+dp = Dispatcher()
 
-@router.message(Command("cat"))
-async def cmd_cat(message: Message):
-    """
-    Обработчик команды /cat.
-    Выводит содержимое всех текстовых файлов в домашнем каталоге.
-    """
+dp.include_router(start.router)
+dp.include_router(help.router)
+dp.include_router(status.router)
+dp.include_router(vm_commands.router)
+
+async def set_bot_commands(bot_instance: Bot):
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="help", description="Помощь"),
+        BotCommand(command="status", description="Информация о тебе"),
+        BotCommand(command="vmpath", description="Указать данные ВМ (host user pass)"),
+        BotCommand(command="check", description="Проверить подключение к ВМ"),
+        BotCommand(command="ls", description="Список файлов на ВМ (опц. путь)"),
+        BotCommand(command="cat", description="Показать файл с ВМ (путь_к_файлу)"),
+    ]
+    await bot_instance.set_my_commands(commands)
+
+async def main_async():
+    await create_tables_if_not_exist()
+    logger.info("Database tables initialized/checked.")
+
+    await set_bot_commands(bot)
+    logger.info("Bot commands set.")
+    logger.info("Starting bot polling...")
+    await dp.start_polling(bot, close_bot_session=True)
+
+if __name__ == "__main__":
     try:
-        # Получаем информацию о подключении из БД
-        session = get_db_session()
-        vm_connection = session.query(VMConnection).filter_by(user_id=message.from_user.id).first()
-        
-        if not vm_connection:
-            await message.answer("Сначала укажите параметры подключения к VM с помощью команды /vmpath")
-            return
-            
-        # Создаем SSH-клиент
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
-        try:
-            # Подключаемся к VM
-            ssh.connect(
-                hostname=vm_connection.host,
-                username=vm_connection.username,
-                password=vm_connection.password
-            )
-            
-            # Создаем экземпляр FileOperations
-            file_ops = FileOperations(ssh)
-            
-            # Получаем содержимое текстовых файлов
-            text_files = await file_ops.read_text_files()
-            
-            if not text_files:
-                await message.answer("В домашнем каталоге не найдено текстовых файлов")
-                return
-                
-            # Отправляем содержимое каждого файла
-            for filename, content in text_files.items():
-                # Разбиваем длинные сообщения
-                if len(content) > 4000:
-                    chunks = [content[i:i+4000] for i in range(0, len(content), 4000)]
-                    for i, chunk in enumerate(chunks, 1):
-                        await message.answer(f"Файл: {filename} (часть {i}/{len(chunks)})\n\n{chunk}")
-                else:
-                    await message.answer(f"Файл: {filename}\n\n{content}")
-                    
-        except Exception as e:
-            logger.error(f"Error in cmd_cat: {str(e)}")
-            await message.answer(f"Ошибка при подключении к VM: {str(e)}")
-            
-        finally:
-            ssh.close()
-            
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped manually")
     except Exception as e:
-        logger.error(f"Error in cmd_cat: {str(e)}")
-        await message.answer("Произошла ошибка при выполнении команды") 
+        logger.critical(f"Critical error during bot execution: {e}", exc_info=True)
+    finally:
+        if db_engine:
+            logger.info("Disposing database engine.")
+            asyncio.run(db_engine.dispose())
+        logger.info("Bot shutdown complete.") 

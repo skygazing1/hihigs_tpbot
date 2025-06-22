@@ -1,49 +1,42 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 Base = declarative_base()
 
-class VMConnection(Base):
-    """
-    Модель для хранения информации о SSH-подключениях к виртуальным машинам.
-    """
-    __tablename__ = 'vm_connections'
+class User(Base):
+    __tablename__ = 'users'
     
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.userid'))
-    host = Column(String, nullable=False)
-    username = Column(String, nullable=False)
-    password = Column(String, nullable=False)
+    # Поля из первого задания
+    userid = Column(Integer, primary_key=True)
+    username = Column(String)
+    role = Column(String)  # 'teacher' или 'student'
+    tutorcode = Column(String, nullable=True, unique=True) # Уникальный код для преподавателя
+    subscribe = Column(String, nullable=True) # Имя пользователя преподавателя, на которого подписан студент
+    extra = Column(String, nullable=True)
     
-    # Отношение к пользователю
-    user = relationship("User", back_populates="vm_connections")
-    
-    def __repr__(self):
-        return f"<VMConnection(user_id={self.user_id}, host={self.host}, username={self.username})>"
+    # Поля из второго задания
+    vm_host = Column(String, nullable=True)
+    vm_port = Column(Integer, nullable=True)
+    vm_username = Column(String, nullable=True)
+    vm_password = Column(String, nullable=True)
 
-def init_db():
-    """
-    Инициализация базы данных.
-    Создает все таблицы, если они не существуют.
-    """
-    database_url = os.getenv('DATABASE_URL', 'sqlite:///bot.db')
-    engine = create_engine(database_url)
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
+engine = None
+async_session = None
 
-def get_db_session():
-    """
-    Получение сессии базы данных.
-    
-    Returns:
-        Session: Сессия SQLAlchemy
-    """
-    database_url = os.getenv('DATABASE_URL', 'sqlite:///bot.db')
-    engine = create_engine(database_url)
-    Session = sessionmaker(bind=engine)
-    return Session() 
+def initialize_db(database_url: str):
+    global engine, async_session
+    if engine is None:
+        engine = create_async_engine(database_url, echo=False) # Отключаем echo для чистоты логов
+        async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    return engine, async_session
+
+async def init_db():
+    if not engine:
+        raise RuntimeError("Database not initialized. Call initialize_db() first.")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+async def get_db_session() -> AsyncSession:
+    async with async_session() as session:
+        yield session 
